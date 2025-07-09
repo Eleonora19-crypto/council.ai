@@ -1,39 +1,55 @@
+import streamlit as st
+import openai
 import os
-import logging
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
-from werkzeug.middleware.proxy_fix import ProxyFix
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+# Setup
+st.set_page_config(page_title="Council.ai", page_icon="🧠")
+st.title("🎓 Council.ai")
+st.subheader("Your AI-powered study assistant for SAT, TOEFL & more")
 
-class Base(DeclarativeBase):
-    pass
+# API Key
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-db = SQLAlchemy(model_class=Base)
+# Tabs
+tab1, tab2, tab3 = st.tabs(["📘 SAT Quiz", "✍️ Essay Feedback", "🎯 College Matcher"])
 
-# Create the app
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_development")
-app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+with tab1:
+    st.header("SAT-style Quiz")
+    question = st.text_input("Type a topic or ask for a SAT practice question:")
+    if st.button("Generate SAT Question"):
+        with st.spinner("Generating..."):
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You're a test-prep tutor. Give 1 SAT-style multiple choice question."},
+                    {"role": "user", "content": question}
+                ]
+            )
+            st.write(response["choices"][0]["message"]["content"])
 
-# Configure the database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///council.db")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+with tab2:
+    st.header("Essay Feedback")
+    essay = st.text_area("Paste your essay here:")
+    if st.button("Get Feedback"):
+        with st.spinner("Analyzing..."):
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You're an English teacher. Give feedback on grammar, clarity, and structure."},
+                    {"role": "user", "content": essay}
+                ]
+            )
+            st.write(response["choices"][0]["message"]["content"])
 
-# Initialize the app with the extension
-db.init_app(app)
-
-with app.app_context():
-    # Import models to ensure tables are created
-    import models
-    db.create_all()
-
-# Import routes after app creation
-import routes
+with tab3:
+    st.header("College Matcher")
+    major = st.text_input("What do you want to study?")
+    location = st.text_input("Preferred country or region?")
+    if st.button("Find Colleges"):
+        with st.spinner("Matching..."):
+            prompt = f"I'm a student looking to study {major} in {location}. Suggest 3 good universities and explain why."
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            st.write(response["choices"][0]["message"]["content"])
